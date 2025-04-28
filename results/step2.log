@@ -1,0 +1,32 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 2.0.0
+* (C) 2014-2019 Brendan Bulik-Sullivan and Hilary Finucane
+* Broad Institute of MIT and Harvard / MIT Department of Mathematics
+* GNU General Public License v3
+*********************************************************************
+Call: 
+./ldsc.py \
+--out results/step2 \
+--h2 results/step1.sumstats.gz \
+--ref-ld-chr data/reference/eur_w_ld_chr/ \
+--w-ld-chr data/reference/eur_w_ld_chr/ 
+
+Beginning analysis at Wed Apr 23 20:18:50 2025
+Reading summary statistics from results/step1.sumstats.gz ...
+Read summary statistics for 1167627 SNPs.
+Reading reference panel LD Score from data/reference/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read reference panel LD Scores for 1293150 SNPs.
+Removing partitioned LD Scores with zero variance.
+Reading regression weight LD Score from data/reference/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read regression weight LD Scores for 1293150 SNPs.
+After merging with reference panel LD, 1139574 SNPs remain.
+After merging with regression SNP LD, 1139574 SNPs remain.
+Using two-step estimator with cutoff at 30.
+Total Observed scale h2: 0.3212 (0.0256)
+Lambda GC: 1.4926
+Mean Chi^2: 2.5062
+Intercept: 1.2273 (0.0198)
+Ratio: 0.1509 (0.0131)
+Analysis finished at Wed Apr 23 20:19:00 2025
+Total time elapsed: 10.16s

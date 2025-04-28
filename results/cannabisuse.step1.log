@@ -1,0 +1,55 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 2.0.0
+* (C) 2014-2019 Brendan Bulik-Sullivan and Hilary Finucane
+* Broad Institute of MIT and Harvard / MIT Department of Mathematics
+* GNU General Public License v3
+*********************************************************************
+Call: 
+./munge_sumstats.py \
+--sumstats /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/sumstats/cannabisuse.tsv \
+--N-cas 14080.0 \
+--N-con 343726.0 \
+--out /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/cannabisuse.step1 \
+--merge-alleles /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/reference/w_hm3.snplist \
+--snp SNP \
+--a1 A1 \
+--a2 A2 \
+--p P \
+--signed-sumstats BETA,0 
+
+Interpreting column names as follows:
+SNP:	Variant ID (e.g., rs number)
+A1:	Allele 1, interpreted as ref allele for signed sumstat.
+A2:	Allele 2, interpreted as non-ref allele for signed sumstat.
+Beta:	Directional summary statistic as specified by --signed-sumstats.
+P:	p-Value
+N:	Sample size
+N_CAS:	Number of cases
+N_CON:	Number of controls
+
+Reading list of SNPs for allele merge from /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/reference/w_hm3.snplist
+Read 1217311 SNPs for allele merge.
+Reading sumstats from /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/sumstats/cannabisuse.tsv into memory 5000000 SNPs at a time.
+Read 3596849 SNPs from --sumstats file.
+Removed 3132861 SNPs not in --merge-alleles.
+Removed 2 SNPs with missing values.
+Removed 0 SNPs with INFO <= 0.9.
+Removed 0 SNPs with MAF <= 0.01.
+Removed 0 SNPs with out-of-bounds p-values.
+Removed 63 variants that were not SNPs or were strand-ambiguous.
+463923 SNPs remain.
+Removed 0 SNPs with duplicated rs numbers (463923 SNPs remain).
+Removed 21359 SNPs with N < 237979.93766976416 (442564 SNPs remain).
+Median value of SIGNED_SUMSTATS was 0.0, which seems sensible.
+Removed 0 SNPs whose alleles did not match --merge-alleles (442564 SNPs remain).
+Writing summary statistics for 1217311 SNPs (442564 with nonmissing beta) to /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/cannabisuse.step1.sumstats.gz.
+
+Metadata:
+Mean chi^2 = 1.136
+Lambda GC = 1.118
+Max chi^2 = 34.948
+5 Genome-wide significant SNPs (some may have been removed by filtering).
+
+Conversion finished at Sun Apr 27 14:09:02 2025
+Total time elapsed: 54.72s

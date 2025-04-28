@@ -1,0 +1,66 @@
+*********************************************************************
+* LD Score Regression (LDSC)
+* Version 2.0.0
+* (C) 2014-2019 Brendan Bulik-Sullivan and Hilary Finucane
+* Broad Institute of MIT and Harvard / MIT Department of Mathematics
+* GNU General Public License v3
+*********************************************************************
+Call: 
+./ldsc.py \
+--out /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/baldness_computeruse.step4 \
+--rg /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/baldness.step1.sumstats.gz,/Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/computeruse.step1.sumstats.gz \
+--ref-ld-chr /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/reference/eur_w_ld_chr/ \
+--w-ld-chr /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/reference/eur_w_ld_chr/ 
+
+Beginning analysis at Sun Apr 27 14:49:21 2025
+Reading summary statistics from /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/baldness.step1.sumstats.gz ...
+Read summary statistics for 1167622 SNPs.
+Reading reference panel LD Score from /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/reference/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read reference panel LD Scores for 1293150 SNPs.
+Removing partitioned LD Scores with zero variance.
+Reading regression weight LD Score from /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/data/reference/eur_w_ld_chr/[1-22] ... (ldscore_fromlist)
+Read regression weight LD Scores for 1293150 SNPs.
+After merging with reference panel LD, 1139569 SNPs remain.
+After merging with regression SNP LD, 1139569 SNPs remain.
+Computing rg for phenotype 2/2
+Reading summary statistics from /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/computeruse.step1.sumstats.gz ...
+Read summary statistics for 1217311 SNPs.
+After merging with summary statistics, 1139569 SNPs remain.
+157439 SNPs with valid alleles.
+WARNING: number of SNPs less than 200k; this is almost always bad.
+
+Heritability of phenotype 1
+---------------------------
+Total Observed scale h2: 0.4593 (0.0797)
+Lambda GC: 1.6259
+Mean Chi^2: 2.9688
+Intercept: 1.1749 (0.1457)
+Ratio: 0.0889 (0.074)
+
+Heritability of phenotype 2/2
+-----------------------------
+Total Observed scale h2: 0.0703 (0.0066)
+Lambda GC: 1.4926
+Mean Chi^2: 1.6075
+Intercept: 1.0351 (0.0242)
+Ratio: 0.0578 (0.0399)
+
+Genetic Covariance
+------------------
+Total Observed scale gencov: -0.0014 (0.007)
+Mean z1*z2: -0.0164
+Intercept: -0.0037 (0.0193)
+
+Genetic Correlation
+-------------------
+Genetic Correlation: -0.008 (0.0394)
+Z-score: -0.2027
+P: 0.8394
+
+
+Summary of Genetic Correlation Results
+                                                                              p1                                                                                  p2     rg     se       z      p  h2_obs  h2_obs_se  h2_int  h2_int_se  gcov_int  gcov_int_se
+/Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/baldness.step1.sumstats.gz /Users/bingli/Documents/GitHub/GWAS_Yap_et_al/results/computeruse.step1.sumstats.gz -0.008 0.0394 -0.2027 0.8394  0.0703     0.0066  1.0351     0.0242   -0.0037       0.0193
+
+Analysis finished at Sun Apr 27 14:49:42 2025
+Total time elapsed: 21.26s
