@@ -40,7 +40,18 @@ function calculate_heritability_p_value(log_file_path::String)
     return pval, z
 end
 
-
+"""
+    Function to change the file extension of files in a specified folder.
+    It reads each file, replaces spaces with tabs, and saves the updated content
+    to a new file with a .tsv extension.
+    
+    Arguments:
+    - datafolder: String specifying the path to the folder containing files
+    - files: Vector of Strings specifying the names of files to be processed
+    
+    Returns:
+    - None but prints "Done" when the operation is complete 
+"""
 change_file_extension_for_empty_sep(files) # see function change_file_extension in utility.jl
     for file in files
         input_path = joinpath(datafolder, file)

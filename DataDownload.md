@@ -63,6 +63,14 @@ Link: https://www.thessgac.com/papers/7
 number of children ever born: sample size = 318463
 first birth age for male = 103736
 
+# ---------------- ptsd ---------------# 
+Link: https://figshare.com/articles/dataset/ptsd2019/14672133?file=28169727 
+Only download the EUR ancestry with 23,212 cases and 151,447 controls 
+
+# --------------- Daytime Napping --------------# 
+Link: https://sleep.hugeamp.org/dinspector.html?dataset=GWAS_UKBB_eu
+Daytime napping sample size 452633
+
 
 #--------------- Dataset Information ---------------#
 

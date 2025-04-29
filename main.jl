@@ -45,6 +45,16 @@ function parse_commandline()
     arg_type = String
     default = "SUPERGNOVA"
 
+    "--SUPERGNOVA_python_path"
+    help = "Path to the python executable for SUPERGNOVA"
+    arg_type = String
+    default = "/Users/bingli/opt/miniconda3/envs/supergnova/bin/python"
+
+    "--threads"
+    help = "Number of threads to use"
+    arg_type = Int
+    default = -1
+
     return parse_args(s) 
 
 end
@@ -61,6 +71,14 @@ datafolder = parsed_args["datafolder"]
 reffolder = parsed_args["reffolder"]
 ldsc_path = parsed_args["ldsc_path"]
 SUPERGNOVA_path = parsed_args["SUPERGNOVA_path"]
+SUPERGNOVA_python_path = parsed_args["SUPERGNOVA_python_path"]
+threads = parsed_args["threads"]
+
+#--------------- Check arguments ---------------#
+if threads == -1
+    threads = Sys.CPU_THREADS
+    println("Using all available threads: $threads")
+end
 
 if rootfolder == "-1"
     println("Please provide the root folder path")
@@ -82,7 +100,7 @@ mkpath(unused_data)
 # The below "check data" section is messy, but I will leave it here for now 
 
 # change all .txt files to .tsv files 
-files = ["adhd.txt", "income.txt", "baldness.txt", "cannabisuse.txt", "computeruse.txt"]
+files = ["adhd.txt", "income.txt", "baldness.txt", "cannabisuse.txt", "computeruse.txt", "ptsd.txt", "daytimenapping.txt"]
 
 change_file_extension(files) # see function change_file_extension in utility.jl 
 
@@ -109,9 +127,19 @@ df_adhd = CSV.File(adhd_path; delim='\t', header=1) |> DataFrame
 modified_adhd = joinpath(datafolder, "adhd_modified.tsv")
 add_beta_and_save(df_adhd, modified_adhd)
 
+# PTSD only has OR, not log(OR)
+ptsd_path = joinpath(datafolder, "ptsd.tsv")
+df_ptsd = CSV.File(ptsd_path; delim='\t', header=1) |> DataFrame
+modified_ptsd = joinpath(datafolder, "ptsd_modified.tsv")
+add_beta_and_save(df_ptsd, modified_ptsd)
+
 # move and rename folders
-run(`mv $adhd_path $destination/`)
-run(`mv $modified_adhd $/`)
+run(`mv $adhd_path $unused_data/`) # move the adhd original file to unused_data folder
+run(`mv $modified_adhd $adhd_path`) # rename the data folder to its original name 
+
+run(`mv $ptsd_path $unused_data/`) # move the ptsd original file to unused_data folder 
+run(`mv $modified_ptsd $ptsd_path`)  # rename the data folder to its original name  
+
 # Later the function will be run on trait.tsv, so it's important to rename the file to trait.tsv
 # and remove the original file to unused_data 
 
@@ -176,6 +204,19 @@ quantitative_traits_info = Dict(
             "ALLELE0" => "ALLELE0",
             "BETA" => "BETA",
             "P" => "P_BOLT_LMM"
+        )
+    ),
+
+    "daytimenapping" => Dict(
+        "sample_size" => 452633,
+        "columns" => Dict(
+            "SNP" => "SNP",
+            "CHR" => "CHR",
+            "BP" => "BP",
+            "ALLELE1" => "A1",
+            "ALLELE0" => "A2",
+            "BETA" => "BETA",
+            "P" => "P"
         )
     ),
 
@@ -248,6 +289,19 @@ binary_traits_info = Dict(
             "BETA" => "BETA",
             "P" => "P"
         )
+    ), 
+
+    "PTSD" => Dict( # 23,212 cases and 151,447 controls 
+        "cases" => 23212,
+        "controls" => 151448,
+        "columns" => Dict(
+            "SNP" => "SNP",
+            "CHR" => nothing,
+            "BP" => "BP",
+            "ALLELE1" => "A1",
+            "ALLELE0" => "A2",
+            "BETA" => "BETA",
+            "P" => "P"
     )
 )
 
@@ -391,7 +445,7 @@ new_dict = Dict(
     ),
     "firstbirthmale" => Dict(
         "sample_size" => 103736
-    )
+    ),
 )
 
 run_genetic_correlation(rootfolder, python_path, reffolder, outfolder, ldsc_path, new_dict, Dict())
@@ -406,6 +460,7 @@ added_dict = Dict(
     )
 )
 
+
 binary_size_dict = simplified_binary = Dict(
     trait => Dict("sample_size" => info["cases"] + info["controls"])
     for (trait, info) in binary_traits_info
@@ -415,9 +470,9 @@ quant_size_dic = Dict(
            trait => Dict("sample_size" => info["sample_size"])
            for (trait, info) in quantitative_traits_info
        )
-
+       
 sample_size_dict = merge(added_dict, binary_size_dict, quant_size_dic)
-
+delete!(sample_size_dict, "computeruse") # remove baldness from the dictionary
 
 function run_supergnova_with_added_dict(sample_size_dict::Dict, rootfolder::String, outfolder::String, python_path::String, supergnova_path::String, reffolder::String)
 
@@ -435,18 +490,17 @@ function run_supergnova_with_added_dict(sample_size_dict::Dict, rootfolder::Stri
 
             bfile_path = joinpath(reffolder, "data", "bfiles", "eur_chr@_SNPmaf5")
             partition_path = joinpath(reffolder, "data", "partition", "eur_chr@.bed")
-
-            output_path = joinpath(outfolder, "baldness_" * trait * ".supergnova.txt")
             
             # Let's just save the output in a new outfolder
             final_output = joinpath(outfolder, "local_genetic_correlation")
+            final_output_file = joinpath(final_output, "baldness_$(trait)_gencorrelation.txt")
             mkpath(final_output) # make sure output directory exists
 
             run(`bash $bash_script_path \
                 $baldness_sumstats $sumstats2 \
                 $N1 $N2 \
                 $bfile_path $partition_path \
-                $final_output \
+                $final_output_file \
                 $python_path $supergnova_path`)
         end
     end
@@ -458,12 +512,13 @@ files = [ "baldness.step1.sumstats.gz", "numchildren.step1.sumstats.gz",
     "cannabisuse.step1.sumstats.gz", "computeruse.step1.sumstats.gz",
     "income.step1.sumstats.gz"]
 
+
 for file in files
     path = joinpath(outfolder, file) 
     name = split(file, ".step1")[1]
 
     df = CSV.File(path; delim='\t', header=1) |> DataFrame
-    outpath = joinpath(outfolder, name * "step1.sumstats")
+    outpath = joinpath(outfolder, name * ".step1.sumstats")
     run(`mv $path $unused_data`) # move the file to unused_data folder
 
     # Remove rows with missing values in ALL columns
@@ -477,13 +532,118 @@ for file in files
     run(`gzip $outpath`) # compress the file
 end 
 
+run_supergnova_with_added_dict(sample_size_dict, rootfolder, outfolder, SUPERGNOVA_python_path, SUPERGNOVA_path, reffolder)
 
-run_supergnova_with_added_dict(sample_size_dict, rootfolder, outfolder, python_path, SUPERGNOVA_path, reffolder)
+# Interpret supergnova results 
+baldness_adhd_correlation_path = joinpath(outfolder, "local_genetic_correlation", "baldness_adhd_gencorrelation.txt")
+baldness_numchildren_correlation_path = joinpath(outfolder, "local_genetic_correlation", "baldness_numchildren_gencorrelation.txt")
+baldness_firstbirthmale_correlation_path = joinpath(outfolder, "local_genetic_correlation", "baldness_firstbirthmale_gencorrelation.txt")
+baldness_PTSD_correlation_path = joinpath(outfolder, "local_genetic_correlation", "baldness_PTSD_gencorrelation.txt")
+
+file_list = [baldness_adhd_correlation_path,
+    baldness_numchildren_correlation_path,
+    baldness_firstbirthmale_correlation_path, 
+    baldness_PTSD_correlation_path]
+
+# Only select for regions with p<0.05 
+function filter_regions_with_pval(pval::Float64, file_path::String)
+    println("Filtering regions with p-value < $pval in $file_path")
+    df = CSV.File(file_path; delim=' ', header=1) |> DataFrame
+    println(names(df))
+    filtered_df = filter(row -> row["p"] < pval, eachrow(df))
+    correlated_region = nrow(filtered_df)
+    write_path = joinpath(outfolder, "pval>$(pval)_$(basename(file_path))")
+    CSV.write(write_path, filtered_df; delim='\t')
+    return filtered_df, correlated_region 
+end
+
+for file in file_list
+    pval = 0.05
+    filtered_df, correlated_region = filter_regions_with_pval(pval, file)
+
+    open(main_log_path, "a") do io
+        trait1, trait2 = splitext(basename(file))[1] |> x -> split(x, "_")[2:3]
+        println(io, "Trait: $trait1 vs $trait2")
+        println(io, "Filtered regions with p-value < $pval")
+        println(io, "Number of correlated regions: $correlated_region")
+    end
+end
+
+# Build graphs and table
+input_file_list = [joinpath(outfolder, "pval>0.05_baldness_adhd_gencorrelation.txt"),
+    joinpath(outfolder, "pval>0.05_baldness_numchildren_gencorrelation.txt"),
+    joinpath(outfolder, "pval>0.05_baldness_firstbirthmale_gencorrelation.txt"), 
+    joinpath(outfolder, "pval>0.05_baldness_PTSD_gencorrelation.txt"),
+    joinpath(outfolder, "pval>0.05_baldness_daytimenapping_gencorrelation.txt")]     
+output_plot_path = joinpath(outfolder, "plots")
+
+# Let's visualize the genetically correlated regions across chromosome for the three datasets 
+for file in input_file_list
+    trait1, trait2 = splitext(basename(file))[1] |> x -> split(x, "_")[2:3]
+    println("Processing file: $file with traits: $trait1 and $trait2") # Added for debugging
+
+    run(`Rscript scripts/local_genetic_correlation.R \
+    $file \
+    $output_plot_path \
+    $trait1 \
+    $trait2`)
+
+end
+
+# Integrate summary table together: 
+file_list = [
+    "SummaryTable_baldness_adhd.tsv",
+    "SummaryTable_baldness_daytimenapping.tsv",
+    "SummaryTable_baldness_firstbirthmale.tsv",
+    "SummaryTable_baldness_numchildren.tsv",
+    "SummaryTable_baldness_PTSD.tsv"
+]
+
+dfs = DataFrame[]
+
+# Loop through each file, read, and push to the list
+for file in file_list
+    full_path = joinpath(outfolder, "plots", file)
+    df = CSV.read(full_path, DataFrame; delim='\t')  # read TSV
+    df[!, :Source] .= replace(file, r"SummaryTable_baldness_(.*)\.tsv" => s"\1")  # add a new column "Source" to indicate which trait
+    push!(dfs, df)
+end
+
+combined_df = hcat(dfs...)
+CSV.write(joinpath(outfolder, "local_genetic_correlation", "local_region_information_across_5traits.csv"), combined_df)
 
 
-# ----------------- Run 
+# ----------------- Run PUMUA------------------- # 
+#=
+This part is run on franklin01-02 server since it requires a lot of computational burden 
+=#
+baldness_txt_path = joinpath(outfolder, "baldness.txt")
 
 
+run(`Rscript ./PUMAS/code/gwas_qc.R \
+    --file_path $baldness_txt_path \
+    --frq_path data/reference/PUMUS/1kg_hm3_QCed_noM_freq.frq \
+    --output_path results/PUMUS \
+    --snp SNP \
+    --a1 ALLELE1 \
+    --a2 ALLELE0 \
+    --stat BETA \
+    --p P_BOLT_LMM_INF \
+    --n.total 205327 \
+    --se SE \
+    --chr CHR \
+    --bp BP`)
+
+run(`Rscript ./PUMA-ensemble.subsampling.R \
+    --k 4 \
+    --partitions 0.6,0.2,0.1,0.1 \
+    --trait_name baldness \
+    --ensemble all\
+    --gwas_path ../../results/PUMUS/ \
+    --ld_path ../../data/reference/PUMUS/ld_1kg.RData \
+    --output_path ../../results/PUMUS \
+    --parallel \
+    --threads 10`)
 
 #----------------------- Plot making  ------------------------#
 # ---- Build cell type specific plot ---- # 
