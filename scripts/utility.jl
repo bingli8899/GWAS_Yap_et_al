@@ -52,7 +52,7 @@ end
     Returns:
     - None but prints "Done" when the operation is complete 
 """
-change_file_extension_for_empty_sep(files) # see function change_file_extension in utility.jl
+function change_file_extension_for_empty_sep(files, datafolder) # see function change_file_extension in utility.jl
     for file in files
         input_path = joinpath(datafolder, file)
 
@@ -73,6 +73,7 @@ change_file_extension_for_empty_sep(files) # see function change_file_extension 
         rm(temp_path)
     end
 end
+
 
 function change_file_extension(file_list::Vector{String}) 
     for file in files
