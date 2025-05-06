@@ -4,6 +4,7 @@ using ArgParse
 using CSV
 using DataFrames
 using Conda
+using Plots
 
 include("scripts/utility.jl")
 
@@ -50,6 +51,22 @@ function parse_commandline()
     arg_type = String
     default = "/Users/bingli/opt/miniconda3/envs/supergnova/bin/python"
 
+    "--PUMAS_code_folder"
+    help = "Path to PUMAS source code folder. PS: PUMAS has a error in sourcing the source code, so this is the easiest way"
+    default = "PUMAS/code"
+
+    "--plink_folder"
+    help = "Path to plink executable"
+    default = "plink2_mac_arm64_20250420"
+
+    "--PUMAS_exe_folder"
+    help = "Path to PUMAS"
+    default = "PMAS"
+
+    "--PUMAS_outfolder"
+    help = "Path to PUMAS output"
+    default = "results/PUMAS"
+
     "--threads"
     help = "Number of threads to use"
     arg_type = Int
@@ -72,7 +89,11 @@ reffolder = parsed_args["reffolder"]
 ldsc_path = parsed_args["ldsc_path"]
 SUPERGNOVA_path = parsed_args["SUPERGNOVA_path"]
 SUPERGNOVA_python_path = parsed_args["SUPERGNOVA_python_path"]
+plink_folder = parsed_args["plink_folder"]
 threads = parsed_args["threads"]
+PUMAS_exe_folder = parsed_args["PUMAS_exe_folder"]
+PUMAS_outfolder= parsed_args["PUMAS_outfolder"]
+
 
 #--------------- Check arguments ---------------#
 if threads == -1
@@ -90,6 +111,10 @@ outfolder = joinpath(rootfolder, outfolder)
 reffolder = joinpath(rootfolder, reffolder)
 ldsc_path = joinpath(rootfolder, ldsc_path)
 SUPERGNOVA_path = joinpath(rootfolder, SUPERGNOVA_path)
+plink_folder = joinpath(rootfolder, plink_folder)
+PUMAS_exe_folder = joinpath(rootfolder, PUMAS_exe_folder) 
+PUMAS_outfolder = joinpath(rootfolder, PUMAS_outfolder)
+
 unused_data = joinpath(datafolder, "sumstats", "unused_data")
 main_log_path = joinpath(rootfolder, "main.log")
 
@@ -108,7 +133,7 @@ change_file_extension(files) # see function change_file_extension in utility.jl
 # There must be much better way to code this 
 # But this is faster for me ...   
 files = ["income.txt"]
-change_file_extension_for_empty_sep(files) # see function change_file_extension_for_empty_sep in utility.jl
+change_file_extension_for_empty_sep(files, datafolder) # see function change_file_extension_for_empty_sep in utility.jl
 
 chronotype_path = joinpath(datafolder, "chronotype.csv")
 chronotype_outpath = joinpath(datafolder, "chronotype.tsv")
@@ -190,8 +215,23 @@ CSV.write(computeruse_outpath, df; delim='\t') # save the file again
 run(`mv $computeruse_path $unused_data`)
 run(`mv $computeruse_outpath $computeruse_path`)
 
+# --------------- Some SNPs are missing rs values in baldness dataset ---------#
+ # Remove SNPs without rs ID in baldness dataset 
+
+df = CSV.read(joinpath(datafolder, "baldness.tsv"), DataFrame; delim='\t')
+df_filtered = filter(row -> startswith(row.SNP, "rs"), df)
+CSV.write("filtered_gwas_file.txt", df_filtered; delim='\t')
+run(`mv filtered_gwas_file.txt baldness_filtered.txt`)
+run(`gzip baldness_filtered.txt`)
+
 # Now all the data is cleaned and ready to be used 
 # Quantitative traits dictionary 
+
+# Based on several testing, it seems that baldness dataset might have the A1 and A0 allele switched 
+# Let's add a A0FREQQ column for LocusZoom 
+
+
+
 quantitative_traits_info = Dict(
 
     "baldness" => Dict(
@@ -200,8 +240,8 @@ quantitative_traits_info = Dict(
             "SNP" => "SNP",
             "CHR" => "CHR",
             "BP" => "BP",
-            "ALLELE1" => "ALLELE1",
-            "ALLELE0" => "ALLELE0",
+            "ALLELE1" => "ALLELE0", # It seems that the metadata got switched so switched here
+            "ALLELE0" => "ALLELE1", # We tested this a lot and it seems that this got switched
             "BETA" => "BETA",
             "P" => "P_BOLT_LMM"
         )
@@ -220,18 +260,18 @@ quantitative_traits_info = Dict(
         )
     ),
 
-    # "chronotype" => Dict(
-    #     "sample_size" => 449734,
-    #     "columns" => Dict(
-    #         "SNP" => "Variant_ID",
-    #         "CHR" => "CHR",
-    #         "BP" => "POS",
-    #         "ALLELE1" => "Allele1",
-    #         "ALLELE0" => "Allele2",
-    #         "BETA" => "Meta_ln_OR",
-    #         "P" => "Meta_P_Corrected"
-    #     )
-    # ),
+    "chronotype" => Dict(
+        "sample_size" => 449734,
+        "columns" => Dict(
+            "SNP" => "Variant_ID",
+            "CHR" => "CHR",
+            "BP" => "POS",
+            "ALLELE1" => "Allele1",
+            "ALLELE0" => "Allele2",
+            "BETA" => "Meta_ln_OR",
+            "P" => "Meta_P_Corrected"
+        )
+    ),
 
     "income" => Dict(
         "sample_size" => 286301,
@@ -243,8 +283,7 @@ quantitative_traits_info = Dict(
             "ALLELE1" => "Effect_Allele",
             "BETA" => "Beta",
             "P" => "P"
-        )
-    ),
+        )),
 
     "computeruse" => Dict(
         "sample_size" => 408815,
@@ -256,9 +295,8 @@ quantitative_traits_info = Dict(
             "ALLELE0" => "ALLELE0",
             "BETA" => "BETA",
             "P" => "P_BOLT_LMM_INF"
-        )
+        ))
     )
-)
 
 # Binary traits dictionary with flipped columns
 binary_traits_info = Dict(
@@ -302,8 +340,7 @@ binary_traits_info = Dict(
             "ALLELE0" => "A2",
             "BETA" => "BETA",
             "P" => "P"
-    )
-)
+    )))
 
 
 # run heritability analysis
@@ -339,11 +376,11 @@ function run_ldsc(datafolder::String, rootfolder::String, python_path::String, r
             end
         end
 
-        SNP      = columns["SNP"]
-        ALLELE1  = columns["ALLELE1"]
-        ALLELE0  = columns["ALLELE0"]
-        P        = columns["P"]
-        BETA     = columns["BETA"]
+        SNP = columns["SNP"]
+        ALLELE1 = columns["ALLELE1"]
+        ALLELE0 = columns["ALLELE0"]
+        P = columns["P"]
+        BETA = columns["BETA"]
 
         println("Mapped Columns: SNP=$SNP, ALLELE1=$ALLELE1, ALLELE0=$ALLELE0, P=$P, BETA=$BETA")
 
@@ -472,7 +509,6 @@ quant_size_dic = Dict(
        )
        
 sample_size_dict = merge(added_dict, binary_size_dict, quant_size_dic)
-delete!(sample_size_dict, "computeruse") # remove baldness from the dictionary
 
 function run_supergnova_with_added_dict(sample_size_dict::Dict, rootfolder::String, outfolder::String, python_path::String, supergnova_path::String, reffolder::String)
 
@@ -510,7 +546,8 @@ end
 files = [ "baldness.step1.sumstats.gz", "numchildren.step1.sumstats.gz", 
     "firstbirthmale.step1.sumstats.gz", "adhd.step1.sumstats.gz",
     "cannabisuse.step1.sumstats.gz", "computeruse.step1.sumstats.gz",
-    "income.step1.sumstats.gz"]
+    "income.step1.sumstats.gz", "daytimenapping.step1.sumstats.gz", 
+    "PTSD.step1.sumstats.gz"]
 
 
 for file in files
@@ -587,7 +624,6 @@ for file in input_file_list
     $output_plot_path \
     $trait1 \
     $trait2`)
-
 end
 
 # Integrate summary table together: 
@@ -605,11 +641,11 @@ dfs = DataFrame[]
 for file in file_list
     full_path = joinpath(outfolder, "plots", file)
     df = CSV.read(full_path, DataFrame; delim='\t')  # read TSV
-    df[!, :Source] .= replace(file, r"SummaryTable_baldness_(.*)\.tsv" => s"\1")  # add a new column "Source" to indicate which trait
+    df[!, :Source] .= replace(file, r"SummaryprTable_baldness_(.*)\.tsv" => s"\1")  # add a new column "Source" to indicate which trait
     push!(dfs, df)
 end
 
-combined_df = hcat(dfs...)
+combined_df = vcat(dfs...)
 CSV.write(joinpath(outfolder, "local_genetic_correlation", "local_region_information_across_5traits.csv"), combined_df)
 
 
@@ -617,36 +653,88 @@ CSV.write(joinpath(outfolder, "local_genetic_correlation", "local_region_informa
 #=
 This part is run on franklin01-02 server since it requires a lot of computational burden 
 =#
-baldness_txt_path = joinpath(outfolder, "baldness.txt")
+baldness_txt_path = joinpath(datafolder, "baldness.txt")
 
+# After talking with Stephen Doir 
+# Prunning the dataset first, first need to have a snp list with one single column of rsID: 
+df = CSV.read(baldness_txt_path, DataFrame; delim = "\t") 
+rs_snps = df[startswith.(df.SNP, "rs"), :SNP]
+mkpath(PUMAS_outfolder)
+snplist_path = joinpath(PUMAS_outfolder, "baldness_rs_snplist.txt")
+
+# select 100 snps with the smallest pvals 
+top100 = df[1:100, :SNP]
+CSV.write(joinpath(PUMAS_outfolder, "baldness_top100rs_snplist.txt"), DataFrame(SNP = top100); delim = '\t', header = false)
+
+prunning_ref = joinpath(reffolder, "PUMAS","kg_hm3_QCed_noM" )
+run(`./scripts/prunning.sh $PUMAS_outfolder $prunning_ref $snplist_path $PUMAS_outfolder`)
+
+
+
+# Then rn the prune_QC.R code. I am tired of organizing this already... 
+# Although this script is written in a way to take argument, I am tired of this already . 
+
+run(` ./plink/plink2 \
+  --bfile data/reference/PUMAS/1kg_hm3_QCed_noM \
+  --extract results/PUMAS/baldness_rs_snplist.txt \
+  --indep-pairwise 1000 5 0.1 \
+  --out results/PUMAS`)
 
 run(`Rscript ./PUMAS/code/gwas_qc.R \
-    --file_path $baldness_txt_path \
-    --frq_path data/reference/PUMUS/1kg_hm3_QCed_noM_freq.frq \
-    --output_path results/PUMUS \
-    --snp SNP \
-    --a1 ALLELE1 \
-    --a2 ALLELE0 \
-    --stat BETA \
-    --p P_BOLT_LMM_INF \
-    --n.total 205327 \
-    --se SE \
-    --chr CHR \
-    --bp BP`)
+  --file_path results/PUMAS/baldness.txt \
+  --frq_path data/reference/PUMAS/1kg_hm3_QCed_noM_freq.frq \
+  --output_path results/PUMAS/ \
+  --snp SNP \
+  --a1 ALLELE1 \
+  --a2 ALLELE0 \
+  --stat BETA \
+  --p P_BOLT_LMM_INF \
+  --n.total 205327 \
+  --se SE \
+  --chr CHR \
+  --bp BP`)
 
-run(`Rscript ./PUMA-ensemble.subsampling.R \
+run(`./scripts/prunning.sh PUMAS $prunning_ref $snplist_path $PUMAS_outfolder`)
+
+run(`Rscript PUMAS/code/PUMAS.subsampling.R \
+--k 4 \
+--partitions 0.75,0.25 \
+--trait_name baldness \
+--gwas_path results/PUMAS/QC/ \
+--ld_path data/reference/PUMAS/ \
+--parallel \
+--output_path results/PUMAS/`) 
+
+run(`Rscript scripts/thresholding.R baldness results/PUMAS/ results/PUMAS/`)
+
+run(`Rscript ./PUMAS/code/PUMAS.evaluation.R \
     --k 4 \
-    --partitions 0.6,0.2,0.1,0.1 \
+    --ref_path data/reference/PUMAS/1kg_hm3_QCed_noM \
     --trait_name baldness \
-    --ensemble all\
-    --gwas_path ../../results/PUMUS/ \
-    --ld_path ../../data/reference/PUMUS/ld_1kg.RData \
-    --output_path ../../results/PUMUS \
-    --parallel \
-    --threads 10`)
+    --prs_method P_and_T \
+    --xty_path results/PUMAS/ \
+    --stats_path results/PUMAS/ \
+    --weight_path results/PUMAS/ \
+    --output_path results/PUMAS/eval `)
 
-#----------------------- Plot making  ------------------------#
-# ---- Build cell type specific plot ---- # 
+# Somehow visusalize the results:
 
+# Load the data
+PUMAS_results = joinpath(PUMAS_outfolder, "evalbaldness.P_and_T.txt")
+df = CSV.read(PUMAS_results, DataFrame; delim="\t")
 
+# Convert the DataFrame to a matrix
+heatmap_data = Matrix(df)
 
+# Extract the column names to use as labels
+column_labels = names(df)
+
+# Create the heatmap with custom x-axis labels
+heatmap(heatmap_data, 
+        xlabel="Significance Thresholds", 
+        ylabel="Iterations (Cross-Validation Folds)", 
+        xticks=(1:length(column_labels), column_labels),  # Custom x-axis labels
+        title="Cross-Validation Results for Baldness GWAS", 
+        color=:coolwarm, 
+        colorbar=true,
+        rotation = 90)  # Set rotation to 90 degrees for vertical labels
